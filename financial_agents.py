@@ -1,32 +1,22 @@
 """
-AI Financial Agents for specialized financial analysis
+AI Financial Agents for specialized financial analysis and recommendations
 """
 
 import numpy as np
-import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-import logging
-
+from typing import Dict, List, Any
 from models import FinancialProfile, MarketConditions, BudgetPlan, InvestmentRecommendation
-from azure_openai_client import AzureOpenAIClient
-
-logger = logging.getLogger(__name__)
-
 
 class AIFinancialAgent:
     """Base class for specialized AI agents"""
-    
     def __init__(self, name: str, expertise: str):
         self.name = name
         self.expertise = expertise
         self.context_history = []
-        self.ai_client = AzureOpenAIClient()
     
     async def analyze(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Override in specialized agents"""
         raise NotImplementedError
-
 
 class FinancialProfileAnalyzer(AIFinancialAgent):
     """Agent specialized in analyzing user financial profiles"""
@@ -58,8 +48,7 @@ class FinancialProfileAnalyzer(AIFinancialAgent):
         
         risk_capacity_score = self._calculate_risk_capacity(age, dependents, employment_stability, savings_rate)
         
-        # Basic analysis
-        basic_analysis = {
+        analysis = {
             'financial_health_score': self._calculate_financial_health_score(
                 savings_rate, debt_to_income, emergency_fund_months
             ),
@@ -72,27 +61,7 @@ class FinancialProfileAnalyzer(AIFinancialAgent):
             'improvement_areas': self._identify_improvement_areas(savings_rate, debt_to_income, emergency_fund_months)
         }
         
-        # Enhanced AI analysis
-        try:
-            from models import AIAnalysisRequest
-            ai_request = AIAnalysisRequest(
-                user_profile=profile_data,
-                analysis_type="financial_profile"
-            )
-            ai_analysis = await self.ai_client.analyze_financial_profile(ai_request)
-            
-            # Combine basic and AI analysis
-            basic_analysis.update({
-                'ai_summary': ai_analysis.analysis_summary,
-                'ai_insights': ai_analysis.insights,
-                'ai_recommendations': ai_analysis.recommendations,
-                'ai_confidence': ai_analysis.confidence_score
-            })
-            
-        except Exception as e:
-            logger.warning(f"AI analysis failed, using basic analysis: {e}")
-        
-        return basic_analysis
+        return analysis
     
     def _calculate_financial_health_score(self, savings_rate: float, debt_to_income: float, emergency_months: float) -> int:
         """Calculate overall financial health score (0-100)"""
@@ -213,9 +182,58 @@ class FinancialProfileAnalyzer(AIFinancialAgent):
         
         return improvements
 
-
 class MarketDataAgent(AIFinancialAgent):
     """Agent specialized in fetching and analyzing market data"""
     
     def __init__(self):
-        super().__init__("MarketAnal
+        super().__init__("MarketAnalyzer", "Market Data Analysis")
+        self.market_cache = {}
+        self.cache_expiry = timedelta(minutes=15)
+    
+    async def analyze(self, request_params: Dict[str, Any]) -> MarketConditions:
+        """Fetch and analyze current market conditions"""
+        
+        # Check cache first
+        if self._is_cache_valid():
+            return self.market_cache['data']
+        
+        # Simulate real-time market data
+        market_data = self._simulate_market_data()
+        
+        # Analyze market conditions
+        market_conditions = MarketConditions(
+            market_trend=market_data['trend'],
+            volatility_index=market_data['volatility'],
+            interest_rates=market_data['interest_rates'],
+            inflation_rate=market_data['inflation'],
+            sector_performance=market_data['sectors'],
+            economic_indicators=market_data['indicators'],
+            last_updated=datetime.now()
+        )
+        
+        # Cache the results
+        self.market_cache = {
+            'data': market_conditions,
+            'timestamp': datetime.now()
+        }
+        
+        return market_conditions
+    
+    def _is_cache_valid(self) -> bool:
+        """Check if cached market data is still valid"""
+        if not self.market_cache:
+            return False
+        
+        return datetime.now() - self.market_cache['timestamp'] < self.cache_expiry
+    
+    def _simulate_market_data(self) -> Dict[str, Any]:
+        """Simulate real-time market data (replace with actual API calls)"""
+        
+        # Market trend simulation
+        trend_prob = np.random.random()
+        if trend_prob > 0.6:
+            trend = "bullish"
+        elif trend_prob < 0.3:
+            trend = "bearish"
+        else:
+            trend = "sideways"
